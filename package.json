@@ -1,6 +1,6 @@
 {
   "name": "@moreplease/zig",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "description": "Installs the official Zig compiler for your platform from ziglang.org's signed releases. The package version is the Zig version plus a packaging revision.",
   "keywords": [
     "zig",
