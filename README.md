@@ -1,10 +1,9 @@
 # @moreplease/zig
 
 Installs the official [Zig](https://ziglang.org/) compiler for your platform as
-an npm package. **The package version is the Zig version plus a packaging
-revision**: `@moreplease/zig@0.16.0` installs Zig 0.16.0, and upgrading Zig
-means bumping the dependency. The revision only changes for fixes to the
-installer itself.
+an npm package. **The package version is the Zig version**:
+`@moreplease/zig@0.17.0` installs Zig 0.17.0, and upgrading Zig means bumping
+the dependency. Fixes to the installer itself ship with the next Zig release.
 
 ```sh
 npm install --save-dev @moreplease/zig
@@ -98,7 +97,7 @@ spawnSync(zig, ["build"], { stdio: "inherit" });
 
 | Export | Description |
 | --- | --- |
-| `version` | The pinned Zig version (the package version without its revision). |
+| `version` | The pinned Zig version (same as the package version). |
 | `ensureZig({ log? })` | Installs if necessary and resolves to the binary path. |
 | `zigBinaryPath()` | Where the binary is or will be. Synchronous, no download. |
 | `isInstalled()` | Whether the pinned version is present. |
@@ -124,9 +123,7 @@ pnpm update-zig 0.18.0   # or a specific one
 
 This rewrites `zig-release.json` from the official
 [index](https://ziglang.org/download/index.json), refreshes the mirror
-snapshot, and sets the package version to `<zig version>-1`. Re-running it for
-the same Zig release leaves the package version alone. For a packaging-only
-fix, bump the revision by hand (`0.16.0-1` to `0.16.0-2`). Review the diff,
+snapshot, and sets the package version to the Zig version. Review the diff,
 run the tests, publish.
 
 Only stable releases are tracked.
