@@ -174,6 +174,12 @@ test("rejects a missing or mismatched signature and tries the next source", asyn
     assert.ok(r.url.startsWith(s.mirror("good")));
     assert.ok(r.logs.some((l) => /is for "zig-x86_64-linux-0\.0\.0/.test(l)));
     assert.ok(r.logs.some((l) => /HTTP 404/.test(l)));
+    // The signature is checked first, so the archive itself was never
+    // requested from the bad mirrors.
+    assert.deepEqual(
+      s.requests.filter((p) => p.endsWith(`/${FILE}`)),
+      [`/good/${FILE}`],
+    );
     fs.rmSync(r.dir, { recursive: true, force: true });
   } finally {
     await s.close();

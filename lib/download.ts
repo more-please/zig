@@ -1,7 +1,12 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import type { Logger } from "./extract.ts";
-import { parsePublicKey, parseSignature, verify } from "./minisign.ts";
+import {
+  parsePublicKey,
+  parseSignature,
+  signedFileName,
+  verify,
+} from "./minisign.ts";
 
 const MIRROR_LIST_URL = "https://ziglang.org/download/community-mirrors.txt";
 const SOURCE_TAG = "moreplease-zig";
@@ -246,6 +251,18 @@ export async function downloadVerified({
     const sigUrl = url.replace(fileName, `${fileName}.minisig`);
     const origin = new URL(url).host;
     try {
+      // The signature is a few hundred bytes, so fetch it first: a mirror
+      // that lacks this release, or serves a signature for some other file,
+      // is rejected without downloading the archive. The real verification
+      // still happens below, once the archive is in hand.
+      const sig = parseSignature(await fetchText(sigUrl, timeouts.headerMs));
+      if (!sig.keyId.equals(pub.keyId)) {
+        throw new Error("signature was made with a different key");
+      }
+      const signed = signedFileName(sig.trustedComment);
+      if (signed !== fileName) {
+        throw new Error(`signature is for "${signed}", expected "${fileName}"`);
+      }
       log(
         `downloading ${fileName} (${(size / 1048576).toFixed(1)} MiB) from ${origin}`,
       );
@@ -258,7 +275,6 @@ export async function downloadVerified({
       if (got.sha256 !== shasum) {
         throw new Error(`SHA-256 mismatch (got ${got.sha256})`);
       }
-      const sig = parseSignature(await fetchText(sigUrl));
       verify(sig, pub, {
         blake2b512: got.blake2b512,
         expectedFileName: fileName,
