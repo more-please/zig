@@ -1,0 +1,30 @@
+{
+  // One config for both type-checking and emitting. `pnpm build` runs it.
+  //
+  // Development runs the .ts sources directly through Node's type stripping,
+  // so only erasable syntax is allowed. Publishing ships the compiled output in
+  // dist/, because Node refuses to strip types from files under node_modules.
+  "compilerOptions": {
+    "strict": true,
+    "target": "esnext",
+    "module": "nodenext",
+    "lib": ["esnext"],
+    "types": ["node"],
+    "outDir": "dist",
+    "rootDir": ".",
+    "declaration": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true
+  },
+  "include": ["lib", "bin", "scripts", "test", "install.ts"]
+}
