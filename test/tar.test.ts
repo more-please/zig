@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { safeRelativePath, TarExtractor } from "../lib/tar.ts";
+import {
+  checkSymlinkTarget,
+  safeRelativePath,
+  TarExtractor,
+} from "../lib/tar.ts";
 import {
   haveCommand,
   pseudoRandom,
@@ -160,6 +164,22 @@ test("rejects unsafe paths", () => {
   assert.throws(() => safeRelativePath("top/a\\b", 1), /unsafe/);
   assert.equal(safeRelativePath("top/", 1), null);
   assert.equal(safeRelativePath("top/./lib//std.zig", 1), "lib/std.zig");
+});
+
+test("rejects symlinks that point outside the destination", () => {
+  const dest = path.resolve("out");
+  const link = path.join(dest, "lib", "link");
+  const ok = (target: string): void =>
+    checkSymlinkTarget(dest, link, "lib/link", target);
+  ok("../LICENSE");
+  ok("std/std.zig");
+  ok("./../lib/../LICENSE");
+  assert.throws(() => ok("../../etc/passwd"), /outside the archive/);
+  assert.throws(() => ok("../.."), /outside the archive/);
+  assert.throws(() => ok("/etc/passwd"), /outside the archive/);
+  assert.throws(() => ok("C:/Windows"), /outside the archive/);
+  // A sibling directory whose name merely starts with ".." is fine.
+  checkSymlinkTarget(dest, path.join(dest, "a"), "a", "..b");
 });
 
 test("detects truncated archives and bad checksums", () => {

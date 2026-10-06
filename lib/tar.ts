@@ -55,6 +55,31 @@ export function safeRelativePath(name: string, strip: number): string | null {
   return rest.length ? rest.join("/") : null;
 }
 
+/**
+ * A symlink must stay inside `dest`: a later entry extracted *through* a
+ * link that points outside would otherwise write outside the tree.
+ */
+export function checkSymlinkTarget(
+  dest: string,
+  linkPath: string,
+  name: string,
+  linkName: string,
+): void {
+  const refuse = (): never => {
+    throw new Error(
+      `tar: refusing symlink "${name}" -> "${linkName}" outside the archive`,
+    );
+  };
+  if (path.isAbsolute(linkName) || /^[A-Za-z]:/.test(linkName)) {
+    refuse();
+  }
+  const resolved = path.resolve(path.dirname(linkPath), linkName);
+  const rel = path.relative(dest, resolved);
+  if (rel === ".." || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+    refuse();
+  }
+}
+
 type Mode = "header" | "meta" | "data" | "skip" | "end";
 type MetaType = "L" | "K" | "x" | "g";
 
@@ -254,6 +279,7 @@ export class TarExtractor {
         break;
       case "2":
         if (target !== null) {
+          checkSymlinkTarget(this.dest, target, name, linkName);
           fs.mkdirSync(path.dirname(target), { recursive: true });
           fs.symlinkSync(linkName, target);
         }
