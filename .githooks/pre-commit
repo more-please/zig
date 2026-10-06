@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Reformat with Biome & apply safe fixes
+pnpm check
+
+# Re-add the files that were changed (handles filenames with spaces)
+git diff --cached --name-only --diff-filter=ACMR -z | xargs -0 git add

@@ -1,0 +1,63 @@
+{
+  "name": "@moreplease/zig",
+  "version": "0.16.0",
+  "description": "Installs the official Zig compiler for your platform from ziglang.org's signed releases. The package version is the Zig version plus a packaging revision.",
+  "keywords": [
+    "zig",
+    "zigc",
+    "ziglang",
+    "compiler",
+    "toolchain"
+  ],
+  "author": "Iain Merrick <iain@moreplease.com>",
+  "license": "0BSD",
+  "type": "module",
+  "bin": {
+    "zig": "dist/bin/zig.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "default": "./dist/lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "dist/lib/index.d.ts",
+  "files": [
+    "dist/bin/",
+    "dist/lib/",
+    "dist/install.js",
+    "zig-release.json"
+  ],
+  "scripts": {
+    "postinstall": "node dist/install.js",
+    "build": "tsc",
+    "format": "biome format --write .",
+    "hooks": "rm -f .git/hooks/pre-commit && ln -s ../../.githooks/pre-commit .git/hooks/pre-commit",
+    "check": "biome check --write --unsafe .",
+    "prepare": "pnpm hooks",
+    "prepack": "pnpm build",
+    "test": "node --test \"test/*.test.ts\"",
+    "test:install": "node scripts/integration-test.ts",
+    "update-zig": "node scripts/update-zig.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.9.1",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@12.9.1",
+  "devDependencies": {
+    "@biomejs/biome": "2.5.8",
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2"
+  }
+}

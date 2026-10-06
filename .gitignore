@@ -1,0 +1,7 @@
+node_modules/
+# Compiled output for publishing (pnpm build)
+dist/
+# Downloaded toolchain and scratch space created by lib/install.ts
+/zig/
+/.tmp-*/
+*.tgz
