@@ -11,6 +11,10 @@
   ],
   "author": "Iain Merrick <iain@moreplease.com>",
   "license": "0BSD",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/more-please/zig.git"
+  },
   "type": "module",
   "bin": {
     "zig": "dist/bin/zig.js"
