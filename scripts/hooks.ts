@@ -16,7 +16,11 @@ if (fs.existsSync(path.join(root, ".git"))) {
     stdio: "inherit",
     shell: process.platform === "win32",
   });
-  if (r.error?.code !== "ENOENT" && r.status !== 0) {
+  if (r.error && "code" in r.error && r.error.code === "ENOENT") {
+    // No git - that's OK, nothing we can do
+    process.exit(0);
+  }
+  if (r.status !== 0) {
     process.exit(r.status ?? 1);
   }
 }
