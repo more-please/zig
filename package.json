@@ -33,7 +33,7 @@
     "postinstall": "node dist/install.js",
     "build": "tsc",
     "format": "biome format --write .",
-    "hooks": "rm -f .git/hooks/pre-commit && ln -s ../../.githooks/pre-commit .git/hooks/pre-commit",
+    "hooks": "node scripts/hooks.ts",
     "check": "biome check --write --unsafe .",
     "prepare": "pnpm hooks",
     "prepack": "pnpm build",
