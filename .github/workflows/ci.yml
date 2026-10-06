@@ -41,7 +41,10 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm test:install
 
-  # Minimal images without `xz`: proves the built-in extractor fallback works.
+  # Minimal images. node:slim has GNU tar but no `xz`, so auto mode falls
+  # back to the built-in extractor by itself. busybox tar on node:alpine can
+  # usually read .tar.xz, so there the built-in extractor is forced instead
+  # to make sure it is exercised on musl too.
   containers:
     name: install (${{ matrix.image }})
     runs-on: ubuntu-latest
@@ -49,10 +52,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: ["node:22-slim", "node:22-alpine"]
+        include:
+          - image: node:22-slim
+            extractor: auto
+          - image: node:22-alpine
+            extractor: js
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: node --test "test/*.test.ts"
       - run: node scripts/integration-test.ts npm
+        env:
+          MOREPLEASE_ZIG_EXTRACTOR: ${{ matrix.extractor }}
