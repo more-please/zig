@@ -47,6 +47,11 @@ function sh(
   }
   return r;
 }
+// Run a one-liner with the current Node binary. No shell: on Windows, cmd.exe
+// would split the script on spaces and treat the `>` in `=>` as a redirect.
+function node(script: string, cwd: string, env: Env): SpawnSyncReturns<string> {
+  return sh(process.execPath, ["-e", script], { cwd, env, shell: false });
+}
 function have(cmd: string): boolean {
   const r = spawnSync(cmd, ["--version"], {
     stdio: "ignore",
@@ -121,13 +126,10 @@ const scenarios: Scenario[] = [
     env: { ZIG: process.execPath }, // any executable will do: we only check it is used
     expectInstalledAfterInstall: false,
     check: (dir, env) => {
-      const r = sh(
-        "node",
-        [
-          "-e",
-          "import('@moreplease/zig').then(async m => console.log(await m.ensureZig()))",
-        ],
-        { cwd: dir, env },
+      const r = node(
+        "import('@moreplease/zig').then(async m => console.log(await m.ensureZig()))",
+        dir,
+        env,
       );
       if (r.stdout.trim() !== process.execPath) {
         throw new Error(`expected override path, got ${r.stdout}`);
@@ -179,13 +181,10 @@ for (const s of scenarios) {
           `zig version printed "${r.stdout.trim()}", expected ${release.version}`,
         );
       }
-      const api = sh(
-        "node",
-        [
-          "-e",
-          "import('@moreplease/zig').then(async m => console.log(m.version, m.isInstalled(), await m.ensureZig()))",
-        ],
-        { cwd: dir, env },
+      const api = node(
+        "import('@moreplease/zig').then(async m => console.log(m.version, m.isInstalled(), await m.ensureZig()))",
+        dir,
+        env,
       );
       if (!api.stdout.startsWith(`${release.version} true `)) {
         throw new Error(`unexpected API output: ${api.stdout}`);
