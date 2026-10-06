@@ -7,6 +7,7 @@ import {
   signedFileName,
   verify,
 } from "../lib/minisign.ts";
+import { makeSigner } from "./_helpers.ts";
 
 // Real data from https://ziglang.org/download/ (0.16.0, aarch64-macos).
 const ZSF_KEY = "RWSGOq2NVecA2UPNdBUZykf1CCb147pkmdtYxgb3Ti+JO/wCYvhbAb/U";
@@ -40,51 +41,6 @@ test("parses a real ZSF signature and its trusted comment verifies", () => {
 });
 
 // --- Synthetic end-to-end tests with a throwaway key -----------------------
-
-interface SignOptions {
-  fileName: string;
-  prehashed?: boolean;
-  badKeyId?: boolean;
-  tamperComment?: boolean;
-}
-
-function makeSigner() {
-  const { publicKey, privateKey } = crypto.generateKeyPairSync("ed25519");
-  const jwk = publicKey.export({ format: "jwk" });
-  const raw = Buffer.from(jwk.x ?? "", "base64url");
-  const keyId = crypto.randomBytes(8);
-  const pubText = `untrusted comment: test key\n${Buffer.concat([Buffer.from("Ed"), keyId, raw]).toString("base64")}\n`;
-  const sign = (
-    data: Buffer,
-    {
-      fileName,
-      prehashed = true,
-      badKeyId = false,
-      tamperComment = false,
-    }: SignOptions,
-  ): string => {
-    const message = prehashed
-      ? crypto.createHash("blake2b512").update(data).digest()
-      : data;
-    const signature = crypto.sign(null, message, privateKey);
-    const trusted = `timestamp:1700000000\tfile:${fileName}\t${prehashed ? "hashed" : ""}`;
-    const global = crypto.sign(
-      null,
-      Buffer.concat([signature, Buffer.from(trusted)]),
-      privateKey,
-    );
-    const sigBlob = Buffer.concat([
-      Buffer.from(prehashed ? "ED" : "Ed"),
-      badKeyId ? crypto.randomBytes(8) : keyId,
-      signature,
-    ]);
-    const comment = tamperComment
-      ? trusted.replace(fileName, "other.tar.xz")
-      : trusted;
-    return `untrusted comment: sig\n${sigBlob.toString("base64")}\ntrusted comment: ${comment}\n${global.toString("base64")}\n`;
-  };
-  return { pubText, sign };
-}
 
 test("verifies a prehashed signature over data", () => {
   const { pubText, sign } = makeSigner();

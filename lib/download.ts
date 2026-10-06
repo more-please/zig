@@ -17,25 +17,50 @@ function shuffle<T>(arr: readonly T[]): T[] {
   return a;
 }
 
-async function fetchWithTimeout(
-  url: string,
-  ms = HEADER_TIMEOUT_MS,
-): Promise<Response> {
-  const res = await fetch(url, {
+function requestInit(signal: AbortSignal): RequestInit {
+  return {
     redirect: "follow",
-    signal: AbortSignal.timeout(ms),
+    signal,
     headers: {
       "user-agent": `${SOURCE_TAG} (+https://www.npmjs.com/package/@moreplease/zig)`,
     },
-  });
+  };
+}
+
+function checkOk(res: Response, url: string): Response {
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} for ${url}`);
   }
   return res;
 }
 
-async function fetchText(url: string, ms?: number): Promise<string> {
-  return (await fetchWithTimeout(url, ms)).text();
+/** Fetch a small text resource, with `ms` as the limit for the whole request. */
+async function fetchText(url: string, ms = HEADER_TIMEOUT_MS): Promise<string> {
+  const res = await fetch(url, requestInit(AbortSignal.timeout(ms)));
+  return checkOk(res, url).text();
+}
+
+/**
+ * Start a request, giving up if the response headers do not arrive within
+ * `ms`. The timer is cleared once they do: an AbortSignal that stayed armed
+ * would also abort the body stream, so a large but healthy download would
+ * fail after `ms` regardless of progress. The caller is responsible for an
+ * idle timeout while reading the body.
+ */
+async function fetchHeaders(url: string, ms: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () =>
+      controller.abort(
+        new DOMException("response headers timed out", "TimeoutError"),
+      ),
+    ms,
+  );
+  try {
+    return checkOk(await fetch(url, requestInit(controller.signal)), url);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -92,12 +117,16 @@ async function downloadFile(
   {
     expectedSize,
     onProgress,
+    headerTimeoutMs = HEADER_TIMEOUT_MS,
+    idleTimeoutMs = IDLE_TIMEOUT_MS,
   }: {
     expectedSize?: number;
     onProgress?: ((received: number) => void) | undefined;
+    headerTimeoutMs?: number | undefined;
+    idleTimeoutMs?: number | undefined;
   },
 ): Promise<Downloaded> {
-  const res = await fetchWithTimeout(url);
+  const res = await fetchHeaders(url, headerTimeoutMs);
   const declared = Number(res.headers.get("content-length"));
   if (declared && expectedSize && declared !== expectedSize) {
     throw new Error(
@@ -118,7 +147,7 @@ async function downloadFile(
       const idle = new Promise<never>((_, reject) => {
         timer = setTimeout(
           () => reject(new Error("download stalled")),
-          IDLE_TIMEOUT_MS,
+          idleTimeoutMs,
         );
       });
       const { done, value } = await Promise.race([reader.read(), idle]).finally(
@@ -180,6 +209,8 @@ export interface DownloadRequest {
   dest: string;
   log?: Logger;
   onProgress?: (received: number) => void;
+  /** Override the network timeouts (mainly for tests). */
+  timeouts?: { headerMs?: number; idleMs?: number };
 }
 
 /**
@@ -201,6 +232,7 @@ export async function downloadVerified({
   dest,
   log = () => {},
   onProgress,
+  timeouts = {},
 }: DownloadRequest): Promise<{ url: string }> {
   const pub = parsePublicKey(publicKey);
   const candidates = mirrors.map(
@@ -220,6 +252,8 @@ export async function downloadVerified({
       const got = await downloadFile(url, partial, {
         expectedSize: size,
         onProgress,
+        headerTimeoutMs: timeouts.headerMs,
+        idleTimeoutMs: timeouts.idleMs,
       });
       if (got.sha256 !== shasum) {
         throw new Error(`SHA-256 mismatch (got ${got.sha256})`);

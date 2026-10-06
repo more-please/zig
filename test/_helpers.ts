@@ -1,4 +1,5 @@
 import { type SpawnSyncOptions, spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -49,6 +50,52 @@ export function pseudoRandom(n: number, seed = 0x12345678): Buffer {
     buf[i] = x & 0xff;
   }
   return buf;
+}
+
+export interface SignOptions {
+  fileName: string;
+  prehashed?: boolean;
+  badKeyId?: boolean;
+  tamperComment?: boolean;
+}
+
+/** A throwaway minisign key pair that produces .minisig files like the ZSF's. */
+export function makeSigner() {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync("ed25519");
+  const jwk = publicKey.export({ format: "jwk" });
+  const raw = Buffer.from(jwk.x ?? "", "base64url");
+  const keyId = crypto.randomBytes(8);
+  const pubText = `untrusted comment: test key\n${Buffer.concat([Buffer.from("Ed"), keyId, raw]).toString("base64")}\n`;
+  const sign = (
+    data: Buffer,
+    {
+      fileName,
+      prehashed = true,
+      badKeyId = false,
+      tamperComment = false,
+    }: SignOptions,
+  ): string => {
+    const message = prehashed
+      ? crypto.createHash("blake2b512").update(data).digest()
+      : data;
+    const signature = crypto.sign(null, message, privateKey);
+    const trusted = `timestamp:1700000000\tfile:${fileName}\t${prehashed ? "hashed" : ""}`;
+    const global = crypto.sign(
+      null,
+      Buffer.concat([signature, Buffer.from(trusted)]),
+      privateKey,
+    );
+    const sigBlob = Buffer.concat([
+      Buffer.from(prehashed ? "ED" : "Ed"),
+      badKeyId ? crypto.randomBytes(8) : keyId,
+      signature,
+    ]);
+    const comment = tamperComment
+      ? trusted.replace(fileName, "other.tar.xz")
+      : trusted;
+    return `untrusted comment: sig\n${sigBlob.toString("base64")}\ntrusted comment: ${comment}\n${global.toString("base64")}\n`;
+  };
+  return { pubText, sign };
 }
 
 /** Hash every file in a tree, for comparing extraction results. */
