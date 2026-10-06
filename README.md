@@ -63,8 +63,10 @@ clear message; set `ZIG` (below) to use your own Zig.
 The download normally happens in the package's `postinstall` script. pnpm 10+
 does not run dependency build scripts until you approve them, and CI setups
 often pass `--ignore-scripts`. Both are fine: if the toolchain is missing when
-`zig` is first run, the launcher downloads it then. To let pnpm do it at
-install time instead, approve the script:
+`zig` is first run, the launcher downloads it then. For the same reason a
+download failure during `postinstall` (offline, firewalled) only prints a
+warning rather than failing your install. To let pnpm do it at install time
+instead, approve the script:
 
 ```yaml
 # pnpm-workspace.yaml (pnpm 11 and later)
