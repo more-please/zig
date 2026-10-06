@@ -23,6 +23,9 @@ Then `zig` is on your PATH in package scripts:
 
 or run it directly with `npx zig version` / `pnpm zig version`.
 
+Install from the npm registry, not from a git URL: the published package
+contains compiled output (`dist/`) that a git checkout lacks.
+
 ## How it works
 
 Nothing is republished: the toolchain comes straight from the Zig Software
@@ -48,7 +51,8 @@ Signature verification uses Node's built-in Ed25519 and BLAKE2b. Extraction uses
 works (bsdtar on macOS and Windows handles both `.tar.xz` and `.zip`), and
 otherwise falls back to a bundled pure-JS xz/tar/zip extractor, so it also
 works in minimal container images such as `node:slim` and `node:alpine` that
-lack the `xz` binary.
+lack the `xz` binary. The pure-JS path is slower: expect extraction to take
+around half a minute of CPU rather than a few seconds.
 
 ### Supported platforms
 
@@ -104,6 +108,9 @@ spawnSync(zig, ["build"], { stdio: "inherit" });
 | `zigBinaryPath()` | Where the binary is or will be. Synchronous, no download. |
 | `isInstalled()` | Whether the pinned version is present. |
 | `zigTarget(platform?, arch?)` | Node platform/arch to Zig target name, e.g. `aarch64-macos`. |
+| `envBinaryPath()` | The `ZIG` override as an absolute path, or `null` if unset. |
+| `installedBinaryPath()` | Where the downloaded binary lives, ignoring any override. |
+| `ENV` | The environment variable names above, as constants. |
 
 Build scripts that invoke Zig many times should spawn the path from
 `ensureZig()` directly rather than going through the `zig` launcher, which pays
@@ -152,10 +159,11 @@ pnpm test:install   # packs the package and installs it with npm and pnpm; needs
 ## Security notes
 
 - The ZSF public key is pinned in `zig-release.json` and in
-  `scripts/update-zig.mjs`. Changing it is a deliberate, reviewable edit.
+  `scripts/update-zig.ts`. Changing it is a deliberate, reviewable edit.
 - Mirrors are untrusted by design. Every archive must match the pinned SHA-256
   **and** carry a valid ZSF signature naming that exact file.
-- Archive paths are sanitised during extraction (no absolute paths, no `..`).
+- Archive paths are sanitised during extraction (no absolute paths, no `..`,
+  no symlinks pointing outside the extracted tree).
 - The verified archive is extracted into a temporary directory and moved into
   place only after `zig version` succeeds.
 
