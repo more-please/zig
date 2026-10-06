@@ -28,7 +28,7 @@ export async function extractArchive(
   fs.rmSync(dest, { recursive: true, force: true });
   fs.mkdirSync(dest, { recursive: true });
   if (method === "auto" || method === "tar") {
-    const result = extractWithSystemTar(archive, dest);
+    const result = extractWithSystemTar(archive, dest, log);
     if (result.ok) {
       return "tar";
     }
@@ -43,19 +43,34 @@ export async function extractArchive(
   return "js";
 }
 
+type TarResult = { ok: true } | { ok: false; reason: string };
+
 function extractWithSystemTar(
   archive: string,
   dest: string,
-): { ok: true } | { ok: false; reason: string } {
-  const r = spawnSync(
-    "tar",
-    ["-xf", archive, "-C", dest, "--strip-components=1"],
-    {
-      stdio: ["ignore", "ignore", "pipe"],
-      windowsHide: true,
-      timeout: 15 * 60 * 1000,
-    },
-  );
+  log: Logger,
+): TarResult {
+  const args = ["-xf", archive, "-C", dest, "--strip-components=1"];
+  // When running as root (usual in containers) tar recreates the uid/gid
+  // stored in the archive; --no-same-owner keeps the files owned by us. GNU
+  // tar, bsdtar and busybox all accept it, but retry without it in case some
+  // other tar does not, so the flag can never cost us the system extractor.
+  const first = runTar([...args, "--no-same-owner"]);
+  if (first.ok || first.reason === "tar not found") {
+    return first;
+  }
+  log(`system tar failed (${first.reason}); retrying without --no-same-owner`);
+  fs.rmSync(dest, { recursive: true, force: true });
+  fs.mkdirSync(dest, { recursive: true });
+  return runTar(args);
+}
+
+function runTar(args: string[]): TarResult {
+  const r = spawnSync("tar", args, {
+    stdio: ["ignore", "ignore", "pipe"],
+    windowsHide: true,
+    timeout: 15 * 60 * 1000,
+  });
   if (r.error) {
     const code = (r.error as NodeJS.ErrnoException).code;
     return {
