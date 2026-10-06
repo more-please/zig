@@ -208,8 +208,6 @@ export async function ensureZig({
       JSON.stringify(marker, null, 2),
     );
 
-    // Move into place atomically. If a concurrent install got there first,
-    // keep theirs.
     fs.rmSync(INSTALL_DIR, { recursive: true, force: true });
     try {
       fs.renameSync(extracted, INSTALL_DIR);
